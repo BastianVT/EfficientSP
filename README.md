@@ -12,11 +12,12 @@ reproduces (or in some sense approximates) the expert's action $\hat{y}_ i$.
 
 You can cite our paper with:
 
+```bibtex
 @article{vejarefficient,
   title={An Efficient Structured Perceptron for NP-hard Combinatorial Optimization Problems},
   author={V{\'e}jar, Basti{\'a}n and Aglin, Ga{\"e}l and Mahmuto{\u{g}}ullar{\i}, Ali {\.I}rfan and Nijssen, Siegfried and Schaus, Pierre and Guns, Tias}
 }
-
+```
 
 
 
