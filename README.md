@@ -4,7 +4,7 @@ In preference learning problems, our goal is to model the behavior of an expert 
 More concretely, given a dataset $\mathcal{D} = \\{(\hat{x}_ i, \hat{y}_ i)\\}_ {i=1}^N$ of exogenous signals $\hat{x}_ i$ and the respective expert's response $\hat{y}_ i$, feature mapping $\phi$, our goal is to find a cost vector $w \in \mathbb{R}^p$ such that a minimizer $y_ i$ of the **Forward Optimization Problem (FOP)**
 
 $$
-y_i \in \arg\min_ {y \in \mathbb{X}(\hat{x}_ i)} \ \langle w,\phi(\hat{x}_ i,y) \rangle
+y_i \in \arg\min_ {y \in \mathbb{Y}(\hat{x}_ i)} \ \langle w,\phi(\hat{x}_ i,y) \rangle
 $$
 
 reproduces (or in some sense approximates) the expert's action $\hat{y}_ i$.
