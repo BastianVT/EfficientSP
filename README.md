@@ -10,7 +10,9 @@ $$
 reproduces (or in some sense approximates) the expert's action $\hat{y}_ i$.
 
 
-You can cite our paper with:
+--------------------------------
+
+If you are using the Efficient SP, please cite our accompanying paper:
 
 ```bibtex
 @article{vejarefficient,
@@ -20,18 +22,3 @@ You can cite our paper with:
 ```
 
 
-
-
-
-
-
-
-
-
-
-If you are using the Efficient SP, please cite our accompanying paper:
-
-@article{vejarefficient,
-  title={An Efficient Structured Perceptron for NP-hard Combinatorial Optimization Problems},
-  author={V{\'e}jar, Basti{\'a}n and Aglin, Ga{\"e}l and Mahmuto{\u{g}}ullar{\i}, Ali {\.I}rfan and Nijssen, Siegfried and Schaus, Pierre and Guns, Tias}
-}
