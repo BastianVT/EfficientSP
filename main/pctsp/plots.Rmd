@@ -1,0 +1,786 @@
+---
+title: "Plots"
+output: html_document
+date: '2023-02-06'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+```{r}
+library(tidyverse)
+
+# Function to load a single dataset and add the dataset name as a column
+load_and_label_dataset <- function(file, label) {
+  dataset <- read.csv(file)
+  dataset$dataset_name <- label
+  return(dataset)
+}
+
+# List all the datasets in the directory
+files <- list.files(path = "path/to/datasets", pattern = "*.csv", full.names = TRUE)
+
+# Load each dataset and add the dataset name as a column
+datasets <- lapply(files, function(x) load_and_label_dataset(x, gsub(".csv", "", basename(x))))
+
+# Merge the datasets vertically (row-wise)
+final_dataset <- bind_rows(datasets)
+
+# Save the final dataset to a file
+write.csv(final_dataset, "path/to/final_dataset.csv", row.names = FALSE)
+
+```
+
+
+
+```{r}
+# Load the required libraries
+library(dplyr)
+library(stringr)
+
+merge_datasets <- function(path) {
+  # Get a list of all the datasets in the directory
+  files <- list.files(path, pattern = "*.csv", full.names = TRUE)
+  
+  # Initialize an empty data frame to store the merged data
+  df_merged <- data.frame()
+  
+  # Loop over each file in the list
+  for (file in files) {
+    # Load the current dataset
+    df_temp <- read.csv(file)
+    
+    # Extract the values A, B, and C from the file name
+    file_name <- str_extract(file, "([a-z]+_t[0-9]+_s[0-9]+)")
+    values <- str_split(file_name, "_t|_s")[[1]]
+    # print(values)
+    A <- values[1]
+    B <- as.numeric(values[2])
+    C <- as.numeric(values[3])
+    
+    # Add columns A, B, and C to the current dataset
+    df_temp$model <- A
+    df_temp$time_limit <- B
+    df_temp$size <- C
+    
+    # Vertically merge the current dataset with the merged data frame
+    df_merged <- rbind(df_merged, df_temp)
+  }
+  
+  # The final merged data frame is stored in the df_merged variable
+  return(df_merged)
+}
+
+merged1 = merge_datasets("../results_thr_1/")
+merged1$n_threads <- 1
+
+merged0 = merge_datasets("../results/")
+merged0$n_threads <- 0
+
+df <- rbind(merged1, merged0)
+
+
+```
+
+
+```{r}
+library(ggplot2)
+library(grid)
+```
+
+
+
+```{r}
+# ggplot(df, aes(x = interaction(model,size,time_limit), y = time)) + 
+#   geom_boxplot() + 
+#   ggtitle("Boxplot of Time by Model")
+make_labels <- function(labels) {
+  result <- str_split(labels, "\\.")
+  unlist(lapply(result, function(x) x[3]))
+}
+
+grob <- grobTree(textGrob("CP_par", x=1,  y=1, rot = 45, gp=gpar(col="red", fontsize=10, fontface="italic")))
+
+ggplot(df %>% filter(time_limit == 300, !(model == "ls" & n_threads == 0)) %>% mutate(n_threads = if_else(model == "ls" & n_threads == 1, 0, n_threads)), aes(x = interaction(model,n_threads,size), y = time, color = interaction(model,n_threads))) + 
+  geom_boxplot() + 
+  geom_vline(xintercept = 3.5, linetype="dashed") +
+  geom_vline(xintercept = 6.5, linetype="dashed") +
+  geom_vline(xintercept = 9.5, linetype="dashed") +
+  geom_vline(xintercept = 12.5, linetype="dashed") +
+  geom_vline(xintercept = 15.5, linetype="dashed") +
+  annotate(geom="text", x=1, y=40, label="CP_par", color="#e55955", angle=90, size=4) +
+  annotate(geom="text", x=2, y=20, label="LS", color="#17b02a", angle=90, size=4) +
+  annotate(geom="text", x=3, y=50, label="CP_nopar", color="#4e86ff", angle=90, size=4) +
+  # annotate(geom="text", x=4, y=45, label="LS_nopar", color="#b75efe", angle=90, size=3) +
+  # geom_text(x=3, y=30, label="Scatter plot", roc) +
+  ggtitle("Boxplot of runtime by Model and Size (Time limit: 5 min = 300s)") +
+  # scale_color_discrete(name = "Model") +
+  labs(x = "Size", y = "Time (s)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position="bottom") +
+  # guides(color = guide_legend(title = "Model"), labels = make_label) +
+  scale_x_discrete(labels = make_labels) +
+  scale_color_discrete(name = "Model", labels = c("CP_par","LS","CP_nopar"))
+
+ggsave(filename = "../charts/box_time_model.pdf", device = "pdf", units = "cm", width=16, height=10, dpi = 600)
+```
+
+
+
+```{r}
+library(scales)
+
+make_labels <- function(labels) {
+  result <- str_split(labels, "\\.")
+  unlist(lapply(result, function(x) x[3]))
+}
+
+df_gap <- df %>% filter(time_limit == 300, !(model == "ls" & n_threads == 0)) %>% mutate(n_threads = if_else(model == "ls" & n_threads == 1, 0, n_threads))
+df_gap <- df_gap %>%
+  group_by(dataset, time_limit, size) %>%
+  mutate(gap = abs(obj - min(obj)))
+
+ggplot(df_gap, aes(x = interaction(model,n_threads,size), y = gap, color = interaction(model,n_threads))) + 
+  geom_boxplot() + 
+  geom_vline(xintercept = 3.5, linetype="dashed") +
+  geom_vline(xintercept = 6.5, linetype="dashed") +
+  geom_vline(xintercept = 9.5, linetype="dashed") +
+  geom_vline(xintercept = 12.5, linetype="dashed") +
+  geom_vline(xintercept = 15.5, linetype="dashed") +
+  ggtitle("Boxplot of Objective Gap by Model and Size") +
+  labs(x = "Size", y = "Objective Gap") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position="bottom") +
+  scale_x_discrete(labels = make_labels)  +
+  scale_color_discrete(name = "Model", labels = c("CP_par","LS","CP_nopar"))
+
+
+ggsave(filename = "../charts/box_obj_model.pdf", device = "pdf", units = "cm", width=16, height=10, dpi = 600)
+```
+
+
+```{r}
+library(scales)
+
+make_labels <- function(labels) {
+  result <- str_split(labels, "\\.")
+  unlist(lapply(result, function(x) x[3]))
+}
+
+base_breaks <- function(n = 10){
+    function(x) {
+        axisTicks(log10(range(x, na.rm = TRUE)), log = TRUE, n = n)
+    }
+}
+
+df_gap <- df %>% filter(time_limit == 300, !(model == "ls" & n_threads == 0)) %>% mutate(n_threads = if_else(model == "ls" & n_threads == 1, 0, n_threads))
+df_gap <- df_gap %>%
+  group_by(dataset, time_limit, size) %>%
+  mutate(gap = abs(obj - min(obj)))
+
+ggplot(df_gap, aes(x = interaction(model,n_threads,size), y = gap, color = interaction(model,n_threads))) + 
+  geom_boxplot() + 
+  geom_vline(xintercept = 3.5, linetype="dashed") +
+  geom_vline(xintercept = 6.5, linetype="dashed") +
+  geom_vline(xintercept = 9.5, linetype="dashed") +
+  geom_vline(xintercept = 12.5, linetype="dashed") +
+  geom_vline(xintercept = 15.5, linetype="dashed") +
+  ggtitle("Boxplot of Objective Gap by Model and Size") +
+  labs(x = "Size", y = "Objective Gap") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position="bottom") +
+  scale_x_discrete(labels = make_labels) +
+  scale_color_discrete(name = "Model", labels = c("CP_par","LS","CP_nopar")) +
+  scale_y_continuous(trans = scales::pseudo_log_trans(base = 10), breaks = c(0, 5, 10, 20, 50, 75, 100, 250, 500, 1000, 5000, 10000, 20000, 40000))
+
+ggsave(filename = "../charts/box_obj_model_log.pdf", device = "pdf", units = "cm", width=16, height=10, dpi = 600)
+```
+
+
+
+```{r}
+library(tidyverse)
+```
+
+
+
+```{r}
+pctsp <- read_csv("results/equiv_20230710_172042.csv")
+summary_df1 <- pctsp %>%
+  summarize(mean_eq_0 = mean(n_equivalence),
+            mean_eq_1 = mean(equivalence_1),
+            mean_eq_3 = mean(equivalence_3),
+            mean_eq_5 = mean(equivalence_5),
+            mean_eq_10 = mean(equivalence_10)) %>%
+  pivot_longer(cols = starts_with("mean_eq_"), 
+               names_to = "gap", 
+               values_to = "mean") %>% 
+            mutate(gap = sub("mean_eq_", "", gap)) %>% mutate(percent = mean / 20 * 100)
+
+
+
+ggplot(summary_df1, aes(x = reorder(gap, percent), y = mean)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  geom_text(aes(label = paste0(round(percent, 1), "%")), vjust = -0.5) +
+  #ggtitle("Number of runs with an error gap of at most 0%, 1%, 3%, 5% and 10%") +
+  labs(x = "Gap", y = "Number of runs") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), axis.title.x = element_blank(), legend.position="bottom") +
+  scale_x_discrete(labels = c("0%", "1%", "3%", "5%", "10%"))
+
+ggsave(filename = "charts/pctsp_error_gap.pdf", device = "pdf", units = "cm", width=8, height=11, dpi = 600)
+```
+
+```{r}
+pctsp <- read_csv("../kp/results/equiv_20230710_172522.csv")
+summary_df2 <- pctsp %>%
+  summarize(mean_eq_0 = mean(n_equivalence),
+            mean_eq_1 = mean(equivalence_1),
+            mean_eq_3 = mean(equivalence_3),
+            mean_eq_5 = mean(equivalence_5),
+            mean_eq_10 = mean(equivalence_10)) %>%
+  pivot_longer(cols = starts_with("mean_eq_"), 
+               names_to = "gap", 
+               values_to = "mean") %>% 
+            mutate(gap = sub("mean_eq_", "", gap)) %>% mutate(percent = mean / 20 * 100)
+
+ggplot(summary_df2, aes(x = reorder(gap, percent), y = mean)) +
+  geom_bar(stat = "identity", fill = "magenta") +
+  geom_text(aes(label = paste0(round(percent, 1), "%")), vjust = -0.5) +
+  #ggtitle("Number of runs with an error gap of at most 0%, 1%, 3%, 5% and 10%") +
+  labs(x = "Gap", y = "Number of runs") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), axis.title.x = element_blank(), legend.position="bottom") +
+  scale_x_discrete(labels = c("0%", "1%", "3%", "5%", "10%"))
+
+ggsave(filename = "../kp/charts/kp_error_gap.pdf", device = "pdf", units = "cm", width=8, height=11, dpi = 600)
+```
+
+```{r}
+library(ggh4x)
+summary_df1 <- summary_df1 %>% mutate(Problem="MCPCTSP")
+summary_df2 <- summary_df2 %>% mutate(Problem="MCKP")
+summary_df <- bind_rows(summary_df1, summary_df2)
+
+ggplot(summary_df, aes(x = reorder(gap, percent), y = mean, fill = Problem)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = paste0(round(percent, 1), "%")), color="blue", size=3, vjust = -0.2) +
+  #ggtitle("Number of runs with an error gap of at most 0%, 1%, 3%, 5% and 10%") +
+  labs(x = "Error gap", y = "Number of runs over 20") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position="bottom") +
+  scale_x_discrete(labels = c("0%", "1%", "3%", "5%", "10%")) + 
+  #facet_wrap2(vars(problem), scales = "free")
+  facet_wrap2(vars(problem))
+
+ggsave(filename = "charts/error_gap.pdf", device = "pdf", units = "cm", width=14, height=11, dpi = 600)
+```
+
+```{r}
+library(tidyverse)
+library(ggh4x)
+library(scales)
+```
+
+
+```{r}
+pctsp <- read_csv("results/pctsp_distinct_sol.csv")
+pctsp <- pctsp %>% mutate(Problem = "PCTSP")
+kp <- read_csv("../kp/results/kp_distinct_sol.csv")
+kp <- kp %>% mutate(Problem = "KP")
+df <- bind_rows(pctsp, kp)
+df_equiv_sol <- df %>% mutate(n_equiv = 20 - n_sols, type = "Label", iid = c(0:159, 0:159)) %>% select(iid, n_equiv, Problem, type)
+
+ggplot(df, aes(x = as.factor(n_sols), fill = Problem)) +
+geom_bar() +
+labs(x = "Number of disctinct solutions", y = "Number of instances") +
+  theme_bw() +
+theme(axis.text.x = element_text(angle = 0, hjust = 1), legend.position="bottom",
+        legend.margin=margin(0,0,0,0),
+        legend.box.margin=margin(-5,-5,-5,-5)) +
+facet_wrap2(vars(Problem), scales = "free_x")
+
+ggsave(filename = "charts/distinct_solutions.pdf", device = "pdf", units = "cm", width=14, height=11, dpi = 600)
+```
+
+
+
+
+```{r}
+pctsp0 <- read_csv("results/equiv_found_th1.csv") %>% select(n_equivalence) %>% mutate(sols_found = n_equivalence, Theorem = 0)
+pctsp1 <- read_csv("results/equiv_found_th1.csv") %>% select(sols_found) %>% mutate(Theorem = 1)
+pctsp2 <- read_csv("results/equiv_found_th2.csv") %>% select(sols_found) %>% mutate(Theorem = 2)
+pctsp3 <- read_csv("results/equiv_found_th3.csv") %>% select(sols_found) %>% mutate(Theorem = 3)
+pctsp <- bind_rows(pctsp0, pctsp1, pctsp2, pctsp3) %>% mutate(Problem = "PCTSP")
+
+kp0 <- read_csv("../kp/results/equiv_found_th1.csv") %>% select(n_equivalence) %>% mutate(sols_found = n_equivalence, Theorem = 0)
+kp1 <- read_csv("../kp/results/equiv_found_th1.csv") %>% select(sols_found) %>% mutate(Theorem = 1)
+kp2 <- read_csv("../kp/results/equiv_found_th2.csv") %>% select(sols_found) %>% mutate(Theorem = 2)
+kp3 <- read_csv("../kp/results/equiv_found_th3.csv") %>% select(sols_found) %>% mutate(Theorem = 3)
+kp <- bind_rows(kp0, kp1, kp2, kp3) %>% mutate(Problem = "KP")
+
+df1 <- bind_rows(pctsp, kp) 
+df <- df1 %>% group_by(Theorem, Problem) %>% summarize(sols_found = mean(sols_found))
+df2 <- df1 %>% filter(Theorem == 0) %>% mutate(n_equiv = sols_found, type = "Quality", iid = c(0:159, 0:159)) %>% select(iid, n_equiv, Problem, type)
+# df2 <- bind_cols(df_equiv_sol %>% select(instance_id), df2)
+df_sol_comp <- bind_rows(df_equiv_sol, df2)
+
+ggplot(df, aes(x = Theorem, y = sols_found, fill = as.factor(Theorem))) +
+geom_bar(stat = "identity") +
+labs(x = "Number of disctinct solutions", y = "Avg Number of problems with existing solution") +
+theme(axis.text.x = element_text(angle = 0, hjust = 1), legend.position="bottom") +
+facet_wrap2(vars(Problem), scales = "free")
+```
+
+
+```{r}
+ggplot(df1, aes(x = Theorem, y = sols_found, fill = as.factor(Theorem))) +
+  geom_boxplot() +
+  labs(x = "Number of disctinct solutions", y = "Number of found solutions", fill = "Theorem") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position="bottom",
+        legend.margin=margin(0,0,0,0),
+        legend.box.margin=margin(-5,-5,-5,-5)) +
+  scale_x_continuous(breaks = 0:3, labels = c("No cache", "Theorem 1", "Theorem 2", "Theorem 3")) +
+  scale_fill_discrete(labels = c("No cache", "Theorem 1", "Theorem 2", "Theorem 3")) + 
+  facet_wrap2(vars(Problem), scales = "free")
+
+ggsave(filename = "charts/n_found_solutions.pdf", device = "pdf", units = "cm", width=14, height=11, dpi = 600)
+```
+
+
+
+```{r}
+ggplot(df_sol_comp, aes(x = iid, y = n_equiv)) +
+  geom_line(aes(group = type, color = type)) +
+  labs(x = "Instance ids", y = "Number of equivalent solutions", color = "Matching criterion") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 0, hjust = 1), legend.position="bottom",
+        legend.margin=margin(0,0,0,0),
+        legend.box.margin=margin(-5,-5,-5,-5)) +
+  facet_wrap2(vars(Problem), ncol = 1, scales = "free")
+ggsave(filename = "charts/equiv_sol.pdf", device = "pdf", units = "cm", width=18, height=11, dpi = 600)
+```
+
+
+
+
+
+
+```{r}
+# pctsp1_cache <- read_csv("results/equiv_found_th1.csv") %>% mutate(Time = runtime - inf_time) %>% select(Time) %>% mutate(time_type = "Caching", Theorem = 1)
+# pctsp1_all <- read_csv("results/equiv_found_th1.csv") %>% select(runtime) %>% mutate(Time = runtime, time_type = "Overall", Theorem = 1)
+# 
+# 
+# pctsp2_cache <- read_csv("results/equiv_found_th2.csv") %>% mutate(Time = runtime - inf_time) %>% select(Time) %>% mutate(time_type = "Caching", Theorem = 2)
+# pctsp2_all <- read_csv("results/equiv_found_th2.csv") %>% select(runtime) %>% mutate(Time = runtime, time_type = "Overall", Theorem = 2)
+# 
+# 
+# pctsp3_cache <- read_csv("results/equiv_found_th3.csv") %>% mutate(Time = runtime - inf_time) %>% select(Time) %>% mutate(time_type = "Caching", Theorem = 3)
+# pctsp3_all <- read_csv("results/equiv_found_th3.csv") %>% select(runtime) %>% mutate(Time = runtime, time_type = "Overall", Theorem = 3)
+# 
+# 
+# pctsp <- bind_rows(pctsp1_cache, pctsp1_all, pctsp2_cache, pctsp2_all, pctsp3_cache, pctsp3_all) %>% mutate(Problem = "PCTSP")
+# 
+# 
+# kp1_cache <- read_csv("../kp/results/equiv_found_th1.csv") %>% mutate(Time = runtime - inf_time) %>% select(Time) %>% mutate(time_type = "Caching", Theorem = 1)
+# kp1_all <- read_csv("../kp/results/equiv_found_th1.csv") %>% select(runtime) %>% mutate(Time = runtime, time_type = "Overall", Theorem = 1)
+# 
+# 
+# kp2_cache <- read_csv("../kp/results/equiv_found_th2.csv") %>% mutate(Time = runtime - inf_time) %>% select(Time) %>% mutate(time_type = "Caching", Theorem = 2)
+# kp2_all <- read_csv("../kp/results/equiv_found_th2.csv") %>% select(runtime) %>% mutate(Time = runtime, time_type = "Overall", Theorem = 2)
+# 
+# 
+# kp3_cache <- read_csv("../kp/results/equiv_found_th3.csv") %>% mutate(Time = runtime - inf_time) %>% select(Time) %>% mutate(time_type = "Caching", Theorem = 3)
+# kp3_all <- read_csv("../kp/results/equiv_found_th3.csv") %>% select(runtime) %>% mutate(Time = runtime, time_type = "Overall", Theorem = 3)
+# 
+# 
+# kp <- bind_rows(kp1_cache, kp1_all, kp2_cache, kp2_all, kp3_cache, kp3_all) %>% mutate(Problem = "KP")
+
+
+
+
+pctsp <- read_csv("results/pctsp_runtime2.csv")
+kp <- read_csv("../kp/results/kp_runtime2.csv")
+
+pctsp <- pctsp %>% group_by(time_type, Theorem) %>% summarize(Time = mean(Time), n_inferences = mean(n_inferences), Theorem = first(Theorem)) %>% mutate(Problem = "PCTSP")
+tmp <- pctsp %>% filter(time_type == "Caching" & Theorem == 0)
+pctsp <- pctsp %>% mutate(Time = Time - tmp$Time)
+
+kp <- kp %>% group_by(time_type, Theorem) %>% summarize(Time = mean(Time), n_inferences = mean(n_inferences), Theorem = first(Theorem)) %>% mutate(Problem = "KP")
+tmp <- kp %>% filter(time_type == "Caching" & Theorem == 0)
+kp <- kp %>% mutate(Time = Time - tmp$Time)
+
+
+
+
+
+# kp1 <- read_csv("../kp/results/equiv_found_th1.csv") %>% mutate(tech_time = (runtime - inf_time) / runtime * 100) %>% select(tech_time, runtime) %>% mutate(Theorem = 1)
+# kp2 <- read_csv("../kp/results/equiv_found_th2.csv") %>% mutate(tech_time = (runtime - inf_time) / runtime * 100) %>% select(tech_time, runtime) %>% mutate(Theorem = 2)
+# kp3 <- read_csv("../kp/results/equiv_found_th3.csv") %>% mutate(tech_time = (runtime - inf_time) / runtime * 100) %>% select(tech_time, runtime) %>% mutate(Theorem = 3)
+# kp <- bind_rows(kp1, kp2, kp3) %>% mutate(Problem = "KP")
+library(scales)
+
+df1 <- bind_rows(pctsp, kp) 
+df <- df1 %>% group_by(Theorem, Problem, time_type) %>% summarize(Time = mean(Time)) %>% ungroup()
+df <- df %>% group_by(Theorem, Problem) %>% mutate(ratio = Time / Time[time_type == "Overall"]) %>% ungroup() #%>% mutate(ratio = ifelse(ratio == 1, NA, as.numeric(ratio)))
+df1 <- df %>% filter(time_type == "Caching")
+df2 <- df %>% filter(time_type == "Inference")
+
+bar_plot <- ggplot(data = df, aes(x = Theorem, y = Time, fill = time_type)) +
+geom_bar(stat = "identity", position=position_dodge()) +
+labs(x = "Theorem", y = "Time (Caching, Inference, Overall)", fill = "Time type") +
+  theme_bw() +
+theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position="bottom",
+        legend.margin=margin(0,0,0,0),
+        legend.box.margin=margin(-5,-5,-5,-5)) +
+  scale_x_continuous(breaks = 0:3, labels = c("No cache", "Theorem 1", "Theorem 2", "Theorem 3")) +
+  # scale_y_continuous(trans = scales::pseudo_log_trans(base = 10)) +
+facet_wrap2(vars(Problem), scales = "free_x")
+
+
+bar_plot +
+  geom_text(data = df1, aes(x = Theorem, y = Time, label = paste0(sprintf("%.2f", ratio*100), "%")), color="#F8766D", size=3, vjust = -1.6, hjust = -0.08, angle = 90) +
+  geom_text(data = df2, aes(x = Theorem, y = Time, label = paste0(sprintf("%.2f", ratio*100), "%")), color="#00BA38", size=3, vjust = 0.25, hjust = -0.08, angle = 90)
+# geom_text(aes(label = ifelse(ratio == 1, "", paste0(sprintf("%0.1f", round(ratio * 100, 1), nsmall = 1), "%"))), color="blue", size=3, vjust = -0.2, hjust = 1.2) +
+# geom_text(data = df1, aes(x = Theorem, y = Time, label = paste0(sprintf("%0.1f", round(ratio * 100, 1), nsmall = 1), "%")), color="blue", size=3, vjust = -0.2, hjust = 1.2) +
+# geom_point(aes(y = runtime)) +
+
+ggsave(filename = "charts/caching_overall_time.pdf", device = "pdf", units = "cm", width=14, height=11, dpi = 600)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+pctsp0 <- read_csv("results/equiv_found_th1.csv") %>% select(n_equivalence) %>% mutate(Theorem = 1)
+pctsp1 <- read_csv("results/equiv_found_th1.csv") %>% select(sols_found, inf_time, runtime) %>% mutate(Theorem = 1)
+pctsp2 <- read_csv("results/equiv_found_th1.csv") %>% select(n_equivalence, sols_found, inf_time, runtime) %>% mutate(Theorem = 2)
+pctsp3 <- read_csv("results/equiv_found_th1.csv") %>% select(n_equivalence, sols_found, inf_time, runtime) %>% mutate(Theorem = 3)
+pctsp <- bind_rows(pctsp1, pctsp2, pctsp3) %>% mutate(Problem = "PCTSP")
+
+kp1 <- read_csv("../kp/results/equiv_found_th1.csv") %>% select(n_equivalence, sols_found, inf_time, runtime) %>% mutate(Theorem = 1)
+kp2 <- read_csv("../kp/results/equiv_found_th1.csv") %>% select(n_equivalence, sols_found, inf_time, runtime) %>% mutate(Theorem = 2)
+kp3 <- read_csv("../kp/results/equiv_found_th1.csv") %>% select(n_equivalence, sols_found, inf_time, runtime) %>% mutate(Theorem = 3)
+kp <- bind_rows(kp1, kp2, kp3) %>% mutate(Problem = "KP")
+
+# kp <- read_csv("../kp/results/kp_distinct_sol.csv")
+# kp <- kp %>% mutate(KP = n_sols)
+# df <- bind_cols(pctsp, kp)
+# df <- df %>% select(PCTSP, KP)
+# 
+# df <- df %>% pivot_longer(cols = c("PCTSP", "KP"), 
+#              names_to = "Problem", 
+#              values_to = "unique_sols")
+
+ggplot(df, aes(x = as.factor(unique_sols), fill = Problem)) +
+geom_bar() +
+labs(x = "Number of disctinct solutions", y = "Number of instances over 160") +
+theme(axis.text.x = element_text(angle = 0, hjust = 1), legend.position="bottom") +
+facet_wrap2(vars(Problem), scales = "free")
+```
+
+
+
+```{r}
+# Sample 'ratio' values
+ratio_values <- c(0.08, 0.96789, 0.05621)
+
+# Apply sprintf with the desired format
+formatted_ratio <- sprintf("%.2f", round(ratio_values * 100, 1))
+
+# Remove leading zero from integer part and replace it with a space
+formatted_ratio <- gsub("^0", " ", formatted_ratio)
+
+print(formatted_ratio)
+```
+
+
+
+```{r}
+library(tidyverse)
+library(scales)
+```
+
+
+
+
+```{r}
+conv_spe_ls <- read_csv("results/PCTSP_False_True")
+conv_spe_opti <- read_csv("results/PCTSP_False_False")
+conv_class_opti <- read_csv("results/PCTSP_True_True")
+
+conv_spe_ls <- conv_spe_ls %>% mutate(Method = "Violation + LS") %>% select(update, cosine, Method)
+conv_spe_opti <- conv_spe_opti %>% mutate(Method = "Violation + OPTI") %>% select(update, cosine, Method)
+conv_class_opti <- conv_class_opti %>% mutate(Method = "Classic + OPTI") %>% select(update, cosine, Method)
+
+convergence <- bind_rows(conv_spe_ls, conv_spe_opti, conv_class_opti)
+```
+
+
+```{r}
+ggplot(data = convergence) +
+  geom_line(aes(x = update, y = cosine, group = Method, color = Method)) + 
+  geom_point(aes(x = update, y = cosine, color = Method))
+```
+
+```{r}
+conv_spe_opti_kp <- read_csv("../kp/results/KP_False_False_newnew")
+conv_class_opti_kp <- read_csv("../kp/results/KP_True_False_new")
+
+conv_spe_opti_kp <- conv_spe_opti_kp %>% mutate(Method = "Violation + Opti Inference") %>% select(update, update_time, cosine, Method)
+conv_class_opti_kp <- conv_class_opti_kp %>% mutate(Method = "Std. + Opti Inference") %>% select(update, update_time, cosine, Method)
+
+convergence_kp <- bind_rows(conv_spe_opti_kp, conv_class_opti_kp)
+```
+```{r}
+ggplot(data = convergence_kp) +
+  geom_line(aes(x = update_time, y = cosine, group = Method, color = Method)) + 
+  geom_point(aes(x = update_time, y = cosine, color = Method)) +
+  labs(x = "Update time", y = "Cosine distance") +
+  theme_bw() +
+  scale_color_manual(values = c("Std. + Opti Inference" = "#F8766D", "Violation + Opti Inference" = "#00BA38")) +
+theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position="bottom", legend.justification = "left",
+        legend.margin=margin(0,0,0,0), axis.title.x = element_text(size=8), axis.title.y = element_text(size=8),
+        legend.box.margin=margin(-7,-7,-7,-30), legend.text = element_text(size=8), legend.title = element_text(size=9))
+
+ggsave(filename = "charts/convergence_kp.pdf", device = "pdf", units = "cm", width=9, height=9, dpi = 600)
+```
+
+
+```{r}
+conv_spe_ls_pctsp <- read_csv("results/PCTSP_False_True_new")
+conv_spe_opti_pctsp <- read_csv("results/PCTSP_False_False_new")
+conv_class_opti_pctsp <- read_csv("results/PCTSP_True_True_new")
+
+conv_spe_ls_pctsp <- conv_spe_ls_pctsp %>% mutate(Method = "Violation + LS") %>% select(update, update_time, cosine, Method)
+conv_spe_opti_pctsp <- conv_spe_opti_pctsp %>% mutate(Method = "Violation + Opti") %>% select(update, update_time, cosine, Method)
+conv_class_opti_pctsp <- conv_class_opti_pctsp %>% mutate(Method = "Std. + Opti") %>% select(update, update_time, cosine, Method)
+
+convergence_pctsp <- bind_rows(conv_spe_ls_pctsp, conv_spe_opti_pctsp, conv_class_opti_pctsp)
+#convergence_pctsp <- bind_rows(conv_spe_opti_pctsp, conv_class_opti_pctsp)
+```
+
+
+```{r}
+ggplot(data = convergence_pctsp) +
+  geom_line(aes(x = update_time, y = cosine, group = Method, color = Method)) + 
+  geom_point(aes(x = update_time, y = cosine, color = Method))+
+  labs(x = "Update time", y = "Cosine distance") +
+  theme_bw() +
+  scale_color_manual(values = c("Std. + Opti" = "#F8766D", "Violation + Opti" = "#00BA38", "Violation + LS" = "#619CFF")) +
+theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position="bottom", legend.justification = "left",
+        legend.margin=margin(0,0,0,0), axis.title.x = element_text(size=8), axis.title.y = element_text(size=8),
+        legend.box.margin=margin(-7,-7,-7,-30), legend.text = element_text(size=8), legend.title = element_text(size=9))  #+
+  #scale_y_log10()
+  #scale_y_continuous(trans = scales::pseudo_log_trans(base = 2))
+
+ggsave(filename = "charts/convergence_pctsp.pdf", device = "pdf", units = "cm", width=9, height=9, dpi = 600)
+```
+
+
+
+
+```{r}
+library(tidyverse)
+library(scales)
+df_kpis <- read_csv("/Users/aglin/Downloads/kpis_scores.csv")
+df_kpis_long <- df_kpis %>% pivot_longer(cols = c("score_S","score_M","num-jobs_S","num-jobs_M","schedule-size_S","schedule-size_M","jobs-in-violation_S","jobs-in-violation_M","jobs-not-in-violation_S","jobs-not-in-violation_M","rules-in-violations_S","rules-in-violations_M"), names_to = c("metric", "type"),
+    names_pattern = "(.*)_(.*)",
+    names_transform = list(type = function(x) {
+      ifelse (x == "S", "Solver", "Modified")
+    }),
+    values_to = "score")
+```
+
+
+```{r}
+#ggplot(data = df_kpis_long %>% filter(!(metric %in% c("score", "num-jobs", "rules-in-violations")))) +
+ggplot(data = df_kpis_long %>% filter(metric == "score")) +
+  geom_point(aes(x = id, y = score, shape = type, colour = type)) +
+  scale_y_continuous(trans = scales::pseudo_log_trans()) +
+  labs(x = "Instance Ids", y = "Sequence score", shape = "Solution", colour = "Solution")
+ggsave(filename = "/Users/aglin/Downloads/score.pdf", device = "pdf", units = "cm", width=20, height=15, dpi = 600)
+```
+
+```{r}
+ggplot(data = df_kpis_long %>% filter(metric == "num-jobs")) +
+  geom_point(aes(x = id, y = score, shape = type, colour = type)) +
+  labs(x = "Instance Ids", y = "Num Jobs", shape = "Solution", colour = "Solution")
+ggsave(filename = "/Users/aglin/Downloads/num-jobs.pdf", device = "pdf", units = "cm", width=20, height=15, dpi = 600)
+```
+
+
+```{r}
+ggplot(data = df_kpis_long %>% filter(metric == "schedule-size")) +
+  geom_point(aes(x = id, y = score, shape = type, colour = type)) +
+  labs(x = "Instance Ids", y = "Schedule size", shape = "Solution", colour = "Solution")
+ggsave(filename = "/Users/aglin/Downloads/schedule-size.pdf", device = "pdf", units = "cm", width=20, height=15, dpi = 600)
+```
+
+
+```{r}
+ggplot(data = df_kpis_long %>% filter(metric == "jobs-in-violation")) +
+  geom_point(aes(x = id, y = score, shape = type, colour = type)) +
+  labs(x = "Instance Ids", y = "Jobs in violation", shape = "Solution", colour = "Solution")
+ggsave(filename = "/Users/aglin/Downloads/jobs-in-violation.pdf", device = "pdf", units = "cm", width=20, height=15, dpi = 600)
+```
+
+
+```{r}
+ggplot(data = df_kpis_long %>% filter(metric == "jobs-not-in-violation")) +
+  geom_point(aes(x = id, y = score, shape = type, colour = type)) +
+  labs(x = "Instance Ids", y = "Jobs not in violation", shape = "Solution", colour = "Solution")
+ggsave(filename = "/Users/aglin/Downloads/jobs-not-in-violation.pdf", device = "pdf", units = "cm", width=20, height=15, dpi = 600)
+```
+
+
+```{r}
+ggplot(data = df_kpis_long %>% filter(metric == "rules-in-violations")) +
+  geom_point(aes(x = id, y = score, shape = type, colour = type)) +
+  labs(x = "Instance Ids", y = "Rules in violation", shape = "Solution", colour = "Solution")
+ggsave(filename = "/Users/aglin/Downloads/rules-in-violation.pdf", device = "pdf", units = "cm", width=20, height=15, dpi = 600)
+```
+
+```{r}
+df_kpis_lono <- df_kpis %>% pivot_longer(cols = c("score_S","score_M","num-jobs_S","num-jobs_M","schedule-size_S","schedule-size_M","jobs-in-violation_S","jobs-in-violation_M","jobs-not-in-violation_S","jobs-not-in-violation_M","rules-in-violations_S","rules-in-violations_M"), names_to = c("metric", ".value"),
+    names_pattern = "(.*)_(.*)",
+    names_transform = list(.value = function(x) {
+      ifelse (x == "S", "solver", "modified")
+    }),
+    values_to = "score")
+df_kpis_lono <- df_kpis_lono %>% mutate("mod_better" = ifelse(modified > solver, 1, 0)) %>% mutate("mod_worse" = ifelse(modified < solver, 1, 0)) %>% mutate("mod_equal" = ifelse(modified == solver, 1, 0))
+df_sum <- df_kpis_lono %>% group_by(metric) %>% summarize(better = sum(mod_better), worse = sum(mod_worse), equal = sum(mod_equal))
+```
+
+
+
+
+```{r}
+library(tidyverse)
+library(scales)
+library(tibble)
+df_basic <- read_csv("/Users/aglin/Downloads/weights_distrib_basic.csv")
+df_basic_first <- df_basic %>% summarise(across(everything(), first))
+df_basic_f_l <- df_basic %>%
+  filter(row_number() %in% c(1, n())) %>%
+  select(everything())
+
+row.names(df_basic_f_l) <- c('first', 'last')
+df_basic_f_l <- t(df_basic_f_l)
+df_basic_f_l <- as.data.frame(df_basic_f_l)
+
+df_basic_f_l <- df_basic_f_l %>% mutate(coef = last/first, magnitude = abs(last/first))
+df_basic_f_l <- df_basic_f_l %>% arrange(desc(magnitude))
+df_basic_f_l <- tibble::rownames_to_column(df_basic_f_l, "constraint")
+
+```
+
+
+```{r}
+new_data <- df_basic %>% mutate(id = row_number())
+ggplot(data = new_data) +
+  geom_line(aes(x = id, y = `(Abs.) LFF500Max50`), color="red") +
+  geom_point(aes(x = id, y = `(Abs.) LFF500Max50`), color="blue")
+```
+
+```{r}
+new_data <- df_basic %>% mutate(id = row_number())
+ggplot(data = new_data) +
+  geom_line(aes(x = id, y = `(Abs.) B061_HiHard66`))
+```
+
+```{r}
+new_data <- df_basic_f_l %>% head(n = 15)
+ggplot(new_data) +
+  geom_bar(aes(x = factor(constraint, levels=constraint), y=magnitude), stat='identity') +
+  #scale_x_man(labels = new_data$constraint,) +
+  scale_y_continuous(trans = scales::pseudo_log_trans(base = 10)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position="bottom", legend.justification = "left",
+        legend.margin=margin(0,0,0,0), axis.title.x = element_text(size=8), axis.title.y = element_text(size=8),
+        legend.box.margin=margin(-7,-7,-7,-30), legend.text = element_text(size=8), legend.title = element_text(size=9)) +
+  labs(x = "Constraints", y = "Magnitude")
+```
+
+```{r}
+new_data <- df_basic_f_l %>% filter(magnitude <= 1)
+ggplot(new_data) +
+  geom_bar(aes(x = factor(constraint, levels=constraint), y=magnitude), stat='identity') +
+  #scale_x_man(labels = new_data$constraint,) +
+  scale_y_continuous(trans = scales::pseudo_log_trans(base = 10)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position="bottom", legend.justification = "left",
+        legend.margin=margin(0,0,0,0), axis.title.x = element_text(size=8), axis.title.y = element_text(size=8),
+        legend.box.margin=margin(-7,-7,-7,-30), legend.text = element_text(size=8), legend.title = element_text(size=9)) +
+  labs(x = "Constraints", y = "Magnitude")
+```
+
+
+```{r}
+library(tidyverse)
+library(scales)
+library(tibble)
+df <- read_csv("/Users/aglin/Downloads/score_comp.csv")
+```
+```{r}
+df_train_mean <- df %>% head(n = 212) %>% select(fast_def_node_metric, recomp_def_node_metric, noclip_ep5_node_metric, fast_def_arc_metric, recomp_def_arc_metric, noclip_ep5_arc_metric) %>% summarise(across(everything(), mean))
+
+df_test_mean <- df %>% tail(n = 54) %>% select(fast_def_node_metric, recomp_def_node_metric, noclip_ep5_node_metric, fast_def_arc_metric, recomp_def_arc_metric, noclip_ep5_arc_metric) %>% summarise(across(everything(), mean))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

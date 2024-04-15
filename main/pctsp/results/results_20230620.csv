@@ -1,0 +1,7 @@
+dataset_path,size,solver,inf_time_limit,n_inf_jobs,learner,n_epochs,n_epoch_jobs,regularization,learning_rate,max_inference,cache_strategy,n_inference,inference_time,total_run_time,train_score,test_score,predicted_weights
+cp_training_t60_s10.csv,10,CP,,1,STRUCT_PERC_FIXED,10,0,0,0.001,1600,BasicCache,1600,67.00548268599997,67.13,0.95,0.92,0.797+1.875+4.808+2.191+5.835
+cp_training_t60_s10.csv,10,CP,-1,1,STRUCT_PERC_FIXED,10,0,0,0.001,1600,BasicCache,1600,65.18221818699978,65.3,0.95,0.92,0.797+1.875+4.808+2.191+5.835
+cp_training_t60_s10.csv,10,CP,-1,1,STRUCT_PERC_FIXED,10,0,0,0.001,-1,None,1600,70.48521693699992,70.61,0.95,0.92,0.797+1.875+4.808+2.191+5.835
+cp_training_t60_s10.csv,10,LS,-1,1,STRUCT_PERC_FIXED,10,0,0,0.001,-1,None,1600,10.810225175,11.18,0.79,0.8,2.06+3.892+9.882+4.154+12.499
+cp_training_t60_s10.csv,10,LS,-1,1,STRUCT_PERC_FIXED,10,0,0,0.001,-1,None,1600,11.336332038999986,11.74,0.76,0.71,2.109+3.499+8.771+3.898+11.876
+cp_training_t60_s10.csv,10,LS,-1,1,STRUCT_PERC_FIXED,10,0,0,0.001,-1,None,1600,11.104030433000013,11.47,0.77,0.75,2.075+3.527+9.634+3.804+12.033

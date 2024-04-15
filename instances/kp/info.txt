@@ -1,0 +1,34 @@
+Source: http://artemisa.unicauca.edu.co/~johnyortega/instances_01_KP/
+
+File name:  kp_n_C
+            knapPI_corr_n_wmax_1
+
+kp: name of the instance of 0/1 knapsack problem
+
+corr: 1 => uncorrelated, 2 => weakly correlated, 3 => strongly correlated
+
+n: number of items
+
+wmax: Maximum weight of an item
+
+Example
+
+n C
+
+v1 w1
+
+v2 w2
+
+: :
+
+vi wi
+
+: :
+
+vn wn
+
+vi: profit of item i
+
+wi: weight of item i
+
+C: knapsack capacity

@@ -1,0 +1,2 @@
+classic,ls_viol,real_w,learnt_w,cosine,train_score,test_score,n_iterations,n_inference,n_updates,n_reuses
+False,False,0_1_2_17,5.731999999999841_-4.084118435198094_2.098763129603945_19.586986601633082,0.07134001873779405,96.71,97.3,2826,1251,2330,1575

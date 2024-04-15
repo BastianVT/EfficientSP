@@ -1,0 +1,2 @@
+dataset_path,size,solver,inf_time_limit,n_inf_jobs,learner,n_epochs,n_epoch_jobs,regularization,learning_rate,max_inference,cache_strategy,n_inference,inference_time,total_run_time,train_score,test_score,predicted_weights
+datasethard_t60_s1000.csv,5,CP,-1,1,STRUCT_PERC_FIXED,20,0,0,0.001,500,EvaluateCompareCache,3200,840.8596574840022,884.75,98.1,98.48,0.085+0.691+1.539+12.539

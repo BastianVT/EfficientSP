@@ -1,0 +1,3 @@
+dataset_path,size,solver,inf_time_limit,n_inf_jobs,learner,n_epochs,n_epoch_jobs,regularization,learning_rate,max_inference,cache_strategy,n_inference,inference_time,total_run_time,train_score,test_score,predicted_weights
+dataset_t60_s50.csv,5,LS,-1,1,STRUCT_PERC_FIXED,20,0,0,0.001,-1,None,3200,106.15008117300022,106.48,93.47,93.97,0.736+1.368+0.425+0.946
+dataset_t60_s50.csv,5,LS,-1,1,STRUCT_PERC_FIXED,20,0,0,0.001,5000,BasicCache,3200,100.70317457899995,101.07,93.47,93.97,0.736+1.368+0.425+0.946

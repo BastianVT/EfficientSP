@@ -1,0 +1,4 @@
+dataset_path,size,solver,inf_time_limit,n_inf_jobs,learner,n_epochs,n_epoch_jobs,regularization,learning_rate,max_inference,cache_strategy,n_inference,inference_time,total_run_time,train_score,test_score,predicted_weights
+cp_training_t60_s10.csv,10,CP,-1,1,STRUCT_PERC_FIXED,20,0,0,0.001,500,EvaluateCompareCache,6400,178.68420588999948,190.51,14.07,14.34,1.17+2.807+7.65+3.206+8.948
+cp_training_t60_s10.csv,10,CP,-1,1,STRUCT_PERC_FIXED,20,0,0,0.001,500,EvaluateCompareCache,6400,146.58119861200083,157.37,14.07,14.34,1.17+2.807+7.65+3.206+8.948
+cp_training_t60_s10.csv,10,CP,-1,1,STRUCT_PERC_FIXED,20,0,0,0.001,500,EvaluateCompareCache,6400,143.3380595859999,154.07,95.83,94.14,1.17+2.807+7.65+3.206+8.948

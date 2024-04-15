@@ -1,0 +1,2 @@
+dataset_path,size,solver,inf_time_limit,n_inf_jobs,learner,n_epochs,n_epoch_jobs,regularization,learning_rate,max_inference,cache_strategy,n_inference,inference_time,total_run_time,train_score,test_score,predicted_weights
+cp_training_t60_s10.csv,10,CP,-1,1,STRUCT_PERC_FIXED,10,1,0.01,0.001,-1,None,1440,67.12887833699995,68.64,97.37,91.33,0.141+0.339+0.875+0.375+1.044
