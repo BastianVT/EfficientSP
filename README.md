@@ -9,6 +9,14 @@ $$
 
 reproduces (or in some sense approximates) the expert's action $\hat{y}_ i$.
 
+-------------------------
+DATA GENERATION:
+
+We generate data for two types of problems using Python: the Knapsack (KP) and the Price-Collecting Travelling Salesman Problem -modifying size parameters generated multiple sizes of both problems.
+
+To generate the KP data we use the scriptS named: "\main\kp\instance_generator.py" and "\main\kp\dataset_generator_1.py" and for the PCTSP data we use the following script to generate the instances: "\main\pctsp\instances_generator.py", which are consolidated in the file: "\main\pctsp\dataset_generator.py". the parameter 'n_materials' defines the number of total clients served in this problem while the 'n_datasets' parameter defines the number of instances.
+
+The instances are stored in txt files in folders, with the following nomenclature: 'size_nxx_yy' with xx the amount of noise introduced and yy the size of the problem (number of clients).
 
 --------------------------------
 
